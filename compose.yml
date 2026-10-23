@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: manucore
+      POSTGRES_PASSWORD: manucore
+      POSTGRES_DB: manucore
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U manucore -d manucore"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  inventory-service:
+    build:
+      context: .
+      dockerfile: services/inventory-service/Dockerfile
+    environment:
+      SERVER_PORT: 8081
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/manucore
+      SPRING_DATASOURCE_USERNAME: manucore
+      SPRING_DATASOURCE_PASSWORD: manucore
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+
+  gateway-service:
+    build:
+      context: .
+      dockerfile: services/gateway-service/Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: dev-open
+      INVENTORY_SERVICE_URL: http://inventory-service:8081
+      CORS_ORIGINS: http://localhost:3000
+    depends_on:
+      - inventory-service
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgdata:

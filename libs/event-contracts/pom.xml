@@ -5,6 +5,7 @@
         <groupId>com.manucore</groupId>
         <artifactId>manucore-erp</artifactId>
         <version>0.1.0-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
     </parent>
     <artifactId>event-contracts</artifactId>
     <name>Archetype - event-contracts</name>

@@ -1,15 +1,22 @@
-FROM maven:3.9-eclipse-temurin-25 as build
-WORKDIR /build
-COPY pom.xml .
-RUN mvn -B -q dependency:go-offline
-COPY src ./src
-RUN mvn -B -q clean package -DskipTests
+
+FROM maven:3.9-eclipse-temurin-25 AS build
+WORKDIR /workspace
+
+COPY . .
+RUN mvn -B -pl services/gateway-service -am -DskipTests package
+
+RUN jar_file=$(find services/gateway-service/target -maxdepth 1 -name '*.jar' ! -name '*.original' | head -n 1) \
+    && test -n "$jar_file" \
+    && cp "$jar_file" /workspace/app.jar
 
 FROM eclipse-temurin:25-jre
-RUN useradd --system --uid 10001 --no-create-home appuser
 WORKDIR /app
-COPY --from=build /build/target/app.jar app.jar
+
+RUN useradd --system --uid 10001 --no-create-home appuser
+COPY --from=build /workspace/app.jar /app/app.jar
+
 USER 10001
 EXPOSE 8080
-ENV JAVA_OPTS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError"
-ENTRYPOINT ["sh", "-c", "exce java $JAVA_OPTS -jar app.jar"]
+ENV JAVA_OPTS="-XX:MaxRAMPercentage=50 -XX:+ExitOnOutOfMemoryError"
+
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar"]
