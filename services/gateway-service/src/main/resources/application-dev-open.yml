@@ -1,0 +1,4 @@
+manucore:
+  security:
+    dev-tenant-id: ${DEV_TENANT_ID:dev-tenant}
+

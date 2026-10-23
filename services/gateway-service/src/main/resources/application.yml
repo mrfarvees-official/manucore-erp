@@ -1,0 +1,58 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: gateway-service
+  cloud:
+    gateway:
+      server:
+        webflux:
+          httpClient:
+            connect-timeout: 2000
+            response-timeout: 30s
+          default-filters:
+            - DedupeResponseHeader=Access-Control-All-Credentials Access-Control-Allow-Origin, RETAIN_UNIQUE
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowedOrigins: ${CORS_ORIGINS:http://localhost:3000}
+                allowedMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+                allowedHeaders: "*"
+                exposedHeaders: [X-Correlation-Id]
+                maxAge: 3600
+          routes:
+            - id: inventory-service
+              uri: ${INVENTORY_SERVICE_URL:http://localhost:8081}
+              predicates:
+                - Path=/api/v1/inventory/**
+
+manucore:
+  security:
+    tenant-claim: ${TENANT_CLAIM:tenant_id}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  health:
+    readinessstate:
+      enabled: true
+    livenessstate:
+      enabled: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: "!dev-open"
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER_URI}
