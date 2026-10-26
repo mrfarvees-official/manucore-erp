@@ -31,6 +31,8 @@ public class SecurityConfig {
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .authorizeExchange(exchange -> exchange
                         .pathMatchers(HttpMethod.OPTIONS).permitAll()
+                        // login and public keys must be reachable without a token
+                        .pathMatchers("/api/v1/auth/**").permitAll()
                         .pathMatchers("/actuator/health/**", "/actuator/prometheus").permitAll()
                         .anyExchange().authenticated())
                 .oauth2ResourceServer(oath2 -> oath2.jwt(Customizer.withDefaults()))

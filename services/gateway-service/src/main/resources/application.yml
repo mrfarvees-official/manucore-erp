@@ -22,6 +22,11 @@ spring:
                 exposedHeaders: [X-Correlation-Id]
                 maxAge: 3600
           routes:
+            - id: identity-tenant-service
+              uri: ${IDENTITY_SERVICE_URL:http://localhost:8082}
+              predicates:
+                  - Path=/api/v1/auth/**
+
             - id: inventory-service
               uri: ${INVENTORY_SERVICE_URL:http://localhost:8081}
               predicates:
@@ -55,4 +60,5 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${JWT_ISSUER_URI}
+          # Keys published by identity-tenant-service. With keycloak later, switch to issuer-uri
+          jwk-set-uri: ${JWT_JWK_SET_URI:http://localhost:8082/api/v1/auth/jwks}

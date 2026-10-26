@@ -4,6 +4,8 @@ metadata:
   name: gateway-service-config
 data:
   INVENTORY_SERVICE_URL: "http://inventory-service:80"
+  IDENTITY_SERVICE_URL: "http://identity-tenant-service:80"
+  JWT_JWK_SET_URI: "http://identity-tenant-service:80/api/v1/auth/jwks"
   CORS_ORIGINS: "http://localhost:3000"
   JWT_ISSUER_URI: "https://REPLACE-ME/realms/manucore"
   TENANT_CLAIM: "tenant_id"
