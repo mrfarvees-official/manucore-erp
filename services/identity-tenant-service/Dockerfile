@@ -4,9 +4,9 @@ WORKDIR /workspace
 COPY . .
 RUN mvn -B -pl services/identity-tenant-service -am -DskipTests package
 
-RUN jar_file=$(find services/identity-tenant-service/target -maxdepth 1 -name '*.jar' ! -name '*.original' | head -n 1) \
-    && test -n "$jar_file" \
-    && cp "$jar_file" /workspace/app.jar
+# fail the build now if the jar is not a Spring Boot executable jar
+RUN jar tf services/identity-tenant-service/target/app.jar | grep -q '^BOOT-INF/' \
+    && cp services/identity-tenant-service/target/app.jar /workspace/app.jar
 
 FROM eclipse-temurin:25-jre
 WORKDIR /app
