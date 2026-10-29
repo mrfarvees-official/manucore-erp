@@ -24,7 +24,7 @@ public class DemoDataSeeder implements CommandLineRunner {
     public DemoDataSeeder(TenantRepository tenants,
                           UserAccountRepository users,
                           PasswordEncoder passwordEncoder,
-                          @Value("${manucore.identity.demo-password:Admin@123") String demoPassword) {
+                          @Value("${manucore.identity.demo-password:Admin@123}") String demoPassword) {
         this.tenants = tenants;
         this.users = users;
         this.passwordEncoder = passwordEncoder;

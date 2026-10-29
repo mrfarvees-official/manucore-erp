@@ -26,7 +26,7 @@ public class TokenService {
     public TokenService(JwtEncoder encoder,
                         RSAKey rsaKey,
                         @Value("${manucore.identity.issuer:manucore-identity}") String issuer,
-                        @Value("${manucore.identity.token-ttl:PATH}") Duration ttl) {
+                        @Value("${manucore.identity.token-ttl:PA1H}") Duration ttl) {
         this.encoder = encoder;
         this.rsaKey = rsaKey;
         this.issuer = issuer;

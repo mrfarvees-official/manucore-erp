@@ -24,6 +24,8 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        // error responses (401, 400, 500) are served from /error and must be reachable
+                        .requestMatchers("/error").permitAll()
                         .requestMatchers("/actuator/health/**", "/actuator/prometheus").permitAll()
                         .anyRequest().authenticated())
                 .build();

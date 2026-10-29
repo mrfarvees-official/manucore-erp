@@ -1,0 +1,23 @@
+server:
+  port: ${SERVER_PORT:8081}
+
+spring:
+  application:
+    name: inventory-service
+  database:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/manucore}
+    username: ${SPRING_DATASOURCE_USERNAME:manucore}
+    password: ${SPRING_DATASOURCE_PASSWORD:manucore}
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
