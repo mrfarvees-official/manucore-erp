@@ -44,6 +44,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                     new UserAccount(
                             UUID.randomUUID(),
                             "acme",
+                            "John Wick",
                             "admin@acme.com",
                             passwordEncoder.encode(demoPassword),
                             "ADMIN,INVENTORY_MANAGER",

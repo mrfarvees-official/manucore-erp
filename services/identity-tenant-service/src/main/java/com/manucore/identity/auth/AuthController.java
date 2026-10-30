@@ -8,11 +8,15 @@ import com.nimbusds.jose.jwk.JWKSet;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Arrays;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -37,6 +41,25 @@ public class AuthController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
 
         return tokenService.issue(user);
+    }
+
+    @GetMapping("/me")
+    public MeResponse me(@AuthenticationPrincipal Jwt jwt) {
+        String userId = jwt.getSubject();
+
+        UserAccount user = users.findById(UUID.fromString(userId))
+                .filter(UserAccount::isActive)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+
+        return new MeResponse(
+                user.getId().toString(),
+                user.getEmail(),
+                user.getName(),
+                Arrays.stream(user.getRoles().split(","))
+                        .map(String::trim)
+                        .filter(role -> !role.isEmpty())
+                        .toList()
+        );
     }
 
     /* Public keys only. The gateway uses this to verify token signatures. */

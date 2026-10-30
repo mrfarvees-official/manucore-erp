@@ -23,6 +23,9 @@ public class UserAccount {
     private String tenantId;
 
     @Column(nullable = false)
+    private String name;
+
+    @Column(nullable = false)
     private String email;
 
     @Column(name = "password_hash", nullable = false)

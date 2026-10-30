@@ -1,8 +1,10 @@
+# syntax=docker/dockerfile:1
 FROM maven:3.9-eclipse-temurin-25 AS build
 WORKDIR /workspace
 
 COPY . .
-RUN mvn -B -pl services/identity-tenant-service -am -DskipTests package
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn -B -pl services/identity-tenant-service -am -DskipTests package
 
 # fail the build now if the jar is not a Spring Boot executable jar
 RUN jar tf services/identity-tenant-service/target/app.jar | grep -q '^BOOT-INF/' \

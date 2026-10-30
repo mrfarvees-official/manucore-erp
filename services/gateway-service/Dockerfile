@@ -1,9 +1,10 @@
-
+# syntax=docker/dockerfile:1
 FROM maven:3.9-eclipse-temurin-25 AS build
 WORKDIR /workspace
 
 COPY . .
-RUN mvn -B -pl services/gateway-service -am -DskipTests package
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn -B -pl services/gateway-service -am -DskipTests package
 
 RUN jar_file=$(find services/gateway-service/target -maxdepth 1 -name '*.jar' ! -name '*.original' | head -n 1) \
     && test -n "$jar_file" \
