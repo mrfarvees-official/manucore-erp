@@ -45,7 +45,7 @@ public class Policy {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private PolicyPriority policyPriority = PolicyPriority.MEDIUM;
+    private PolicyPriority priority = PolicyPriority.MEDIUM;
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
@@ -60,5 +60,5 @@ public class Policy {
             cascade = CascadeType.ALL,
             orphanRemoval = true
     )
-    private List<PolicyCondition> conditions = new ArrayList<>();
+    private List<PolicyConditionGroup> conditionGroups = new ArrayList<>();
 }
