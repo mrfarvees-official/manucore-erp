@@ -1,0 +1,35 @@
+server:
+  port: ${SERVER_PORT:8083}
+
+spring:
+  application:
+    name: authorization-service
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/manucore}
+    username: ${SPRING_DATASOURCE_USERNAME:manucore}
+    password: ${SPRING_DATASOURCE_PASSWORD:manucore}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        default_batch_fetch_size: 50
+
+
+manucore:
+  security:
+    jwk-set-uri: ${JWT_JWK_SET_URI:http://localhost:8082/api/v1/auth/jwks}
+    issuer: ${JWT_ISSUER:manucore-identity}
+
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
