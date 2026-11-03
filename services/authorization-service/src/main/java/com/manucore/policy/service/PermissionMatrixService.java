@@ -63,6 +63,9 @@ public class PermissionMatrixService {
                         resource,
                         caller.attributesWithMethod(ActionMethods.methodFor(action))
                 ).allowed();
+
+                row.put(action, ok);
+                if (ok) allowed.add(resource + ":" + action);
             }
 
             matrix.put(resource, row);

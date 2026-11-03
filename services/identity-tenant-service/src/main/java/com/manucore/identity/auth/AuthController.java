@@ -34,7 +34,7 @@ public class AuthController {
 
     @PostMapping("/login")
     public LoginResponse login(@Valid @RequestBody LoginRequest request) {
-        UserAccount user = users.findByTenantIdAndEmailIgnoreCase(request.tenantId(), request.email())
+        UserAccount user = users.findByEmailIgnoreCase(request.email())
                 .filter(UserAccount::isActive)
                 .filter(u -> passwordEncoder.matches(request.password(), u.getPasswordHash()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
