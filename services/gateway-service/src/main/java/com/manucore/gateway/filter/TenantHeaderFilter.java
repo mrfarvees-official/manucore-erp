@@ -13,7 +13,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
-import javax.swing.text.html.Option;
 import java.util.Optional;
 
 @Component
@@ -21,15 +20,20 @@ public class TenantHeaderFilter implements GlobalFilter, Ordered {
 
     public static final String TENANT_HEADER = "X-Tenant-Id";
     public static final String USER_HEADER = "X-User-Id";
+    public static final String CLIENT_IP_HEADER = "X-Client-Ip";
+    public static final String ORIGINAL_METHOD_HEADER = "X-Original-Method";
 
     private final String tenantClaim;
     private final String devTenantId;
+    private final ClientIpResolver clientIps;
 
     public TenantHeaderFilter(
             @Value("${manucore.security.tenant-claim:tenant_id}") String tenantClaim,
-            @Value("${manucore.security.dev-tenant-id:}") String devTenantId) {
+            @Value("${manucore.security.dev-tenant-id:}") String devTenantId,
+            ClientIpResolver clientIps) {
         this.tenantClaim = tenantClaim;
         this.devTenantId = devTenantId;
+        this.clientIps = clientIps;
     }
 
     @Override
@@ -51,20 +55,28 @@ public class TenantHeaderFilter implements GlobalFilter, Ordered {
             exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
             return exchange.getResponse().setComplete();
         }
-        return chain.filter(withIdentity(exchange, devTenantId, null));
+        // Forward the tenant and user from the token, not the dev placeholder.
+        return chain.filter(withIdentity(exchange, tenant, jwt.getSubject()));
     }
 
     // Removes any client supplied identity headers, then sets trusted ones
     private ServerWebExchange withIdentity(ServerWebExchange exchange, String tenantId, String userId) {
+        String clientIp = clientIps.resolve(exchange.getRequest());
+
         ServerHttpRequest request = exchange.getRequest().mutate()
                 .headers(headers -> {
                     headers.remove(TENANT_HEADER);
                     headers.remove(USER_HEADER);
+                    headers.remove(CLIENT_IP_HEADER);
+                    headers.remove(ORIGINAL_METHOD_HEADER);
                     if (tenantId != null && !tenantId.isBlank()) {
                         headers.set(TENANT_HEADER, tenantId);
                     }
                     if (userId != null && !userId.isBlank()) {
                         headers.set(USER_HEADER, userId);
+                    }
+                    if (clientIp != null) {
+                        headers.set(CLIENT_IP_HEADER, clientIp);
                     }
                 })
                 .build();
@@ -73,8 +85,7 @@ public class TenantHeaderFilter implements GlobalFilter, Ordered {
     }
 
     @Override
-    public int getOrder()
-    {
+    public int getOrder() {
         return -1;
     }
 }

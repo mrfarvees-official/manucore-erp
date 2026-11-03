@@ -4,11 +4,12 @@ server:
 spring:
   application:
     name: inventory-service
-  database:
+  datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/manucore}
     username: ${SPRING_DATASOURCE_USERNAME:manucore}
     password: ${SPRING_DATASOURCE_PASSWORD:manucore}
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: update
 

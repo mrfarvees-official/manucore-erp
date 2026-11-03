@@ -15,6 +15,8 @@ services:
       timeout: 3s
       retries: 10
 
+  # Internal services publish no host ports: everything must go through the gateway,
+  # because the gateway is where authorization is enforced.
   identity-tenant-service:
     build:
       context: .
@@ -25,11 +27,27 @@ services:
       SPRING_DATASOURCE_USERNAME: manucore
       SPRING_DATASOURCE_PASSWORD: manucore
       SEED_DEMO_DATA: "true"
+      AUTHORIZATION_SERVICE_URL: http://authorization-service:8083
     depends_on:
       postgres:
         condition: service_healthy
-    ports:
-      - "8082:8082"
+
+  authorization-service:
+    build:
+      context: .
+      dockerfile: services/authorization-service/Dockerfile
+    environment:
+      SERVER_PORT: 8083
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/manucore
+      SPRING_DATASOURCE_USERNAME: manucore
+      SPRING_DATASOURCE_PASSWORD: manucore
+      JWT_JWK_SET_URI: http://identity-tenant-service:8082/api/v1/auth/jwks
+      SEED_TENANTS: acme
+    depends_on:
+      postgres:
+        condition: service_healthy
+      identity-tenant-service:
+        condition: service_started
 
   inventory-service:
     build:
@@ -43,22 +61,23 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    ports:
-      - "8081:8081"
 
   gateway-service:
     build:
       context: .
       dockerfile: services/gateway-service/Dockerfile
     environment:
-      SPRING_PROFILES_ACTIVE: ${GATEWAY_PROFILE:-dev-open}
+      # "dev-open" disables authentication AND authorization. Use it deliberately.
+      SPRING_PROFILES_ACTIVE: ${GATEWAY_PROFILE:-secured}
       INVENTORY_SERVICE_URL: http://inventory-service:8081
       IDENTITY_SERVICE_URL: http://identity-tenant-service:8082
+      AUTHORIZATION_SERVICE_URL: http://authorization-service:8083
       JWT_JWK_SET_URI: http://identity-tenant-service:8082/api/v1/auth/jwks
       CORS_ORIGINS: http://localhost:3000
     depends_on:
       - inventory-service
       - identity-tenant-service
+      - authorization-service
     ports:
       - "8080:8080"
 

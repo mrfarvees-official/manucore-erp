@@ -77,12 +77,33 @@ public class PolicyEngine {
             String resourceName,
             Map<ConditionAttribute, ?> attributes
     ) {
+        return decide(
+                policyRepository.findCandidates(tenantId, actionName, resourceName),
+                tenantId, userId, roles, departmentId, serviceId,
+                actionName, resourceName, attributes
+        );
+    }
+
+    /**
+     * Decides against an already-loaded policy list. authorize() uses it, and so
+     * does the permission matrix, which loads a tenant's policies once.
+     */
+    public AuthorizationDecision decide(
+            List<Policy> candidates,
+            String tenantId,
+            String userId,
+            List<String> roles,
+            String departmentId,
+            String serviceId,
+            String actionName,
+            String resourceName,
+            Map<ConditionAttribute, ?> attributes
+    ) {
 
         Map<ConditionAttribute, Object> context =
                 buildContext(userId, roles, departmentId, attributes);
 
-        List<Policy> matchingPolicies = policyRepository
-                .findCandidates(tenantId, actionName, resourceName)
+        List<Policy> matchingPolicies = candidates
                 .stream()
                 .filter(Objects::nonNull)
                 // Defense in depth: never trust the repository for tenant isolation.
@@ -205,16 +226,25 @@ public class PolicyEngine {
     // ACTION / RESOURCE MATCHING
     // --------------------------------------------------
 
+    private static final String WILDCARD = "*";
+
     private boolean matchesAction(Policy policy, String actionName) {
 
         return policy.getAction() != null
-                && sameName(policy.getAction().getName(), actionName);
+                && matchesName(policy.getAction().getName(), actionName);
     }
 
     private boolean matchesResource(Policy policy, String resourceName) {
 
         return policy.getResource() != null
-                && sameName(policy.getResource().getName(), resourceName);
+                && matchesName(policy.getResource().getName(), resourceName);
+    }
+
+    /** A policy name of "*" matches every requested name; a null request never matches. */
+    private boolean matchesName(String policyName, String requested) {
+
+        return requested != null
+                && (WILDCARD.equals(policyName) || sameName(policyName, requested));
     }
 
     /** Case-insensitive match. Null on either side never matches. */

@@ -25,7 +25,12 @@ spring:
             - id: identity-tenant-service
               uri: ${IDENTITY_SERVICE_URL:http://localhost:8082}
               predicates:
-                  - Path=/api/v1/auth/**
+                - Path=/api/v1/auth/**
+
+            - id: authorization-service
+              uri: ${AUTHORIZATION_SERVICE_URL:http://localhost:8083}
+              predicates:
+                - Path=/api/v1/authorization/**
 
             - id: inventory-service
               uri: ${INVENTORY_SERVICE_URL:http://localhost:8081}
@@ -35,6 +40,12 @@ spring:
 manucore:
   security:
     tenant-claim: ${TENANT_CLAIM:tenant_id}
+    # Number of trusted reverse proxies in front of the gateway (0 = use the socket address).
+    # Behind one ALB / ingress set 1 so X-Forwarded-For is trusted for exactly that hop.
+    trusted-proxy-hops: ${TRUSTED_PROXY_HOPS:0}
+  authorization:
+    url: ${AUTHORIZATION_SERVICE_URL:http://localhost:8083}
+    timeout: ${AUTHORIZATION_TIMEOUT:PT2S}
 
 management:
   endpoints:

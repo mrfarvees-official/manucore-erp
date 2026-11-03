@@ -1693,4 +1693,56 @@ class PolicyEngineTest {
         assertEquals(combine(op1, a, combine(op2, b, combine(op3, c, d))),
                 denyMatches(List.of(root), Map.of(ConditionAttribute.COUNTRY, "LK")));
     }
+
+    @Test
+    void shouldMatchWildcardActionAndResource() {
+
+        Policy policy = createPolicy(Effect.ALLOW, PolicyPriority.LOW);
+        policy.getAction().setName("*");
+        policy.getResource().setName("*");
+
+        assertTrue(authorizeWithPolicies(List.of(policy), Map.of()).allowed());
+    }
+
+    @Test
+    void shouldLetSpecificDenyBlockWildcardAllowAtSamePriority() {
+
+        Policy wildcardAllow = createPolicy(Effect.ALLOW, PolicyPriority.MEDIUM);
+        wildcardAllow.getAction().setName("*");
+        wildcardAllow.getResource().setName("*");
+
+        Policy deny = createPolicy(Effect.DENY, PolicyPriority.MEDIUM);
+
+        var decision = authorizeWithPolicies(List.of(wildcardAllow, deny), Map.of());
+
+        assertFalse(decision.allowed());
+        assertEquals(List.of(deny.getId()), decision.policyIds());
+    }
+
+    @Test
+    void shouldNotMatchWildcardWhenRequestedNamesAreNull() {
+
+        Policy policy = createPolicy(Effect.ALLOW, PolicyPriority.LOW);
+        policy.getAction().setName("*");
+        policy.getResource().setName("*");
+        stub(List.of(policy));
+
+        var decision = policyEngine.authorize(
+                TENANT_ID, USER_ID, List.of(), null, null, null, null, Map.of());
+
+        assertFalse(decision.allowed());
+    }
+
+    @Test
+    void decideShouldUseSuppliedPoliciesWithoutQueryingRepository() {
+
+        Policy policy = createPolicy(Effect.ALLOW, PolicyPriority.HIGH);
+
+        var decision = policyEngine.decide(
+                List.of(policy), TENANT_ID, USER_ID, List.of(),
+                null, null, ACTION, RESOURCE, Map.of());
+
+        assertTrue(decision.allowed());
+        verify(policyRepository, never()).findCandidates(any(), any(), any());
+    }
 }

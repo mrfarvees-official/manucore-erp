@@ -57,6 +57,7 @@ public class Item {
                 @NotBlank @Size(max = 20) String unit,
                 @NotNull @PositiveOrZero BigDecimal quantity) {
         this.id = UUID.randomUUID();
+        this.tenantId = tenantId;
         this.sku = sku;
         this.name = name;
         this.unit = unit;

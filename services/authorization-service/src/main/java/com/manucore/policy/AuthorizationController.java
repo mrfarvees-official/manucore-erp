@@ -2,7 +2,11 @@ package com.manucore.policy;
 
 import com.manucore.policy.dto.AuthorizationDecision;
 import com.manucore.policy.dto.AuthorizationRequest;
+import com.manucore.policy.dto.CallerContext;
+import com.manucore.policy.dto.PermissionMatrix;
 import com.manucore.policy.enums.ConditionAttribute;
+import com.manucore.policy.service.CallerContextFactory;
+import com.manucore.policy.service.PermissionMatrixService;
 import com.manucore.policy.service.PolicyEngine;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -11,10 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.DayOfWeek;
@@ -30,54 +31,36 @@ import java.util.Map;
 public class AuthorizationController {
 
     private final PolicyEngine policyEngine;
+    private final PermissionMatrixService matrixService;
+    private final CallerContextFactory callers;
 
+    /* Decision for the caller. Identity always comes from the JWT, never from the body. */
+    @SuppressWarnings("NullableProblems")
     @PostMapping("/check")
     public ResponseEntity<AuthorizationDecision> checkAuthorization(
             @Valid @RequestBody AuthorizationRequest request,
             @AuthenticationPrincipal Jwt jwt,
-            HttpServletRequest httpRequest
+            HttpServletRequest http
     ) {
-        // Extract trusted identity information from JWT
-        String tenantId = jwt.getClaimAsString("tenant_id");
-        String userId = jwt.getSubject();
+        CallerContext caller = callers.from(jwt, http);
 
-        if (tenantId == null ||
-                tenantId.isBlank() ||
-                userId == null ||
-                userId.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Required identity claims are missing.");
-        }
+        return ResponseEntity.ok(policyEngine.authorize(
+                caller.tenantId(),
+                caller.userId(),
+                caller.roles(),
+                caller.departmentId(),
+                caller.serviceId(),
+                request.action(),
+                request.resource(),
+                caller.attributesWithMethod(callers.requestMethod(http))));
+    }
 
-        // Extract roles from JWT
-        List<String> roles = jwt.getClaimAsStringList("roles");
-
-        if (roles == null) roles = List.of();
-
-        // Optional identity claims
-        String departmentId = jwt.getClaimAsString("department_id");
-        String serviceId = jwt.getClaimAsString("service_id");
-
-        // Build trusted request context
-        Map<ConditionAttribute, Object> attributes = new EnumMap<>(ConditionAttribute.class);
-
-        attributes.put(ConditionAttribute.IP_ADDRESS, httpRequest.getRemoteAddr());
-        attributes.put(ConditionAttribute.REQUEST_METHOD, httpRequest.getMethod());
-        attributes.put(ConditionAttribute.TIME, LocalTime.now());
-        attributes.put(ConditionAttribute.DAY_OF_WEEK, DayOfWeek.from(LocalDate.now()).name());
-
-        // Execute the policy engine
-        AuthorizationDecision decision = policyEngine
-                .authorize(
-                        tenantId,
-                        userId,
-                        roles,
-                        departmentId,
-                        serviceId,
-                        request.action(),
-                        request.resource(),
-                        attributes
-                );
-
-        return ResponseEntity.ok(decision);
+    /* The caller's permission matrix, for conditional rendering in the UI. */
+    @GetMapping("/permissions")
+    public PermissionMatrix permissions(
+            @AuthenticationPrincipal Jwt jwt,
+            HttpServletRequest http
+    ) {
+        return matrixService.compute(callers.from(jwt, http));
     }
 }

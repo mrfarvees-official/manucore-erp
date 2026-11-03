@@ -15,7 +15,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @RestController
@@ -28,6 +30,7 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokenService;
     private final JWKSet jwkSet;
+    private final AuthorizationClient authorization;
 
     @PostMapping("/login")
     public LoginResponse login(@Valid @RequestBody LoginRequest request) {
@@ -51,15 +54,22 @@ public class AuthController {
                 .filter(UserAccount::isActive)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
 
+        List<String> roles = Arrays.stream(user.getRoles().split(","))
+                .map(String::trim)
+                .filter(role -> !role.isEmpty())
+                .toList();
+
+        Optional<PermissionMatrix> permissions =
+                authorization.fetchPermissions(jwt.getTokenValue());
+
         return new MeResponse(
                 user.getId().toString(),
                 user.getEmail(),
                 user.getName(),
-                Arrays.stream(user.getRoles().split(","))
-                        .map(String::trim)
-                        .filter(role -> !role.isEmpty())
-                        .toList()
-        );
+                user.getTenantId(),
+                roles,
+                permissions.isPresent(),
+                permissions.orElse(null));
     }
 
     /* Public keys only. The gateway uses this to verify token signatures. */

@@ -11,18 +11,23 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD:manucore}
 
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: update
     properties:
       hibernate:
         default_batch_fetch_size: 50
 
-
 manucore:
   security:
     jwk-set-uri: ${JWT_JWK_SET_URI:http://localhost:8082/api/v1/auth/jwks}
     issuer: ${JWT_ISSUER:manucore-identity}
-
+  authorization:
+    # Zone used for TIME / DAY_OF_WEEK policy conditions
+    zone: ${AUTHORIZATION_ZONE:UTC}
+    seed:
+      enabled: ${SEED_DEFAULT_POLICIES:true}
+      tenants: ${SEED_TENANTS:acme}
 
 management:
   endpoints:
