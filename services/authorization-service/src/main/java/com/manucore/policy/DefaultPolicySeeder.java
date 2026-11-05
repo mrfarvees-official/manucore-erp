@@ -43,6 +43,7 @@ public class DefaultPolicySeeder implements ApplicationRunner {
     static final List<String> RESOURCES =
             List.of("*",
                     "INVENTORY.ITEMS",
+                    "INVENTORY.ADJUSTMENTS",
                     "INVENTORY.PING",
                     "INVENTORY.POLICIES",
                     "INVENTORY.CATALOG");

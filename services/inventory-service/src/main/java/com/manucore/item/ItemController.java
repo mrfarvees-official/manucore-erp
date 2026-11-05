@@ -4,10 +4,13 @@ import com.manucore.item.dto.AdjustStockRequest;
 import com.manucore.item.dto.CreateItemRequest;
 import com.manucore.item.dto.ItemResponse;
 import com.manucore.item.dto.UpdateItemRequest;
+import com.manucore.item.dto.ItemPage;
+import com.manucore.item.service.ItemService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 import java.util.UUID;
@@ -18,6 +21,7 @@ import java.util.UUID;
 public class ItemController {
 
     private static final String TENANT_HEADER = "X-Tenant-Id";
+    private static final String USER_HEADER = "X-User-Id";
 
     private final ItemService service;
 
@@ -29,8 +33,11 @@ public class ItemController {
     }
 
     @GetMapping
-    public List<ItemResponse> list(@RequestHeader(TENANT_HEADER) String tenantId) {
-        return service.list(tenantId).stream().map(ItemResponse::from).toList();
+    public ItemPage list(@RequestHeader(TENANT_HEADER) String tenantId,
+                         @RequestParam(defaultValue = "") String q,
+                         @RequestParam(defaultValue = "0") int page,
+                         @RequestParam(defaultValue = "20") int size) {
+        return ItemPage.from(service.page(tenantId, q, page, size));
     }
 
     @GetMapping("/{id}")
@@ -55,8 +62,10 @@ public class ItemController {
 
     @PostMapping("/{id}/adjust")
     public ItemResponse adjust(@RequestHeader(TENANT_HEADER) String tenantId,
+                               @RequestHeader(value = USER_HEADER, required = false) String userId,
                                @PathVariable UUID id,
                                @Valid @RequestBody AdjustStockRequest request) {
-        return ItemResponse.from(service.adjust(tenantId, id, request.delta()));
+        return ItemResponse.from(
+                service.adjust(tenantId, id, request.delta(), request.reason(), userId));
     }
 }

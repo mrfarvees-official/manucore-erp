@@ -1,9 +1,11 @@
 package com.manucore.item.dto;
 
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
 public record AdjustStockRequest(
-        @NotNull BigDecimal delta) {
+        @NotNull BigDecimal delta,
+        @Size(max = 255) String reason) {
 }

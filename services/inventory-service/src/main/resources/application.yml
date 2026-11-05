@@ -13,6 +13,11 @@ spring:
     hibernate:
       ddl-auto: update
 
+manucore:
+  inventory:
+    seed-demo-data: ${SEED_DEMO_DATA:false}
+    seed-tenants: ${SEED_TENANTS:acme}
+
 management:
   endpoints:
     web:

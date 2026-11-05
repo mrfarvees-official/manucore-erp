@@ -1,12 +1,20 @@
-package com.manucore.item;
+package com.manucore.item.service;
 
+import com.manucore.item.Item;
+import com.manucore.item.StockAdjustment;
 import com.manucore.item.dto.CreateItemRequest;
 import com.manucore.item.dto.UpdateItemRequest;
+import com.manucore.item.repository.ItemRepository;
+import com.manucore.item.repository.StockAdjustmentRepository;
 import lombok.AllArgsConstructor;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -18,6 +26,7 @@ import java.util.UUID;
 public class ItemService {
 
     private final ItemRepository items;
+    private final StockAdjustmentRepository adjustments;
 
     @Transactional
     public Item create(String tenantId, CreateItemRequest request) {
@@ -30,8 +39,14 @@ public class ItemService {
     }
 
     @Transactional(readOnly = true)
-    public List<Item> list(String tenantId) {
-        return items.findByTenantIdOrderBySkuAsc(tenantId);
+    public Page<Item> page(String tenantId, String query, int pageNumber, int size) {
+        Pageable pageable = PageRequest.of(
+                Math.max(pageNumber, 0),
+                Math.min(Math.max(size, 1), 100));
+
+        String pattern = "%" + escapeLike(query == null ? "" : query.trim().toLowerCase(Locale.ROOT)) + "%";
+
+        return items.search(tenantId, pattern, pageable);
     }
 
     @Transactional(readOnly = true)
@@ -52,20 +67,38 @@ public class ItemService {
     }
 
     @Transactional
-    public Item adjust(String tenantId, UUID id, BigDecimal delta) {
-        Item item = find(tenantId, id);
-        BigDecimal newQuantity = item.getQuantity().add(delta);
-        if (newQuantity.signum() < 0) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Insufficient stock: available " + item.getQuantity() + ", requested " + delta.abs());
+    public Item adjust(String tenantId, UUID id, BigDecimal delta, String reason, String actorId) {
+        if (delta.signum() == 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Adjustment must not be zero");
         }
-        item.setQuantity(newQuantity);
+
+        Item item = find(tenantId, id);
+        BigDecimal before = item.getQuantity();
+        BigDecimal after = before.add(delta);
+
+        if (after.signum() < 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Insufficient stock: available " + before + ", requested " + delta.abs());
+        }
+
+        item.setQuantity(after);
+        adjustments.save(new StockAdjustment(item, delta, before, after, cleanReason(reason), actorId));
+
         return item;
+    }
+
+    private static String cleanReason(String reason) {
+        return reason == null || reason.isBlank() ? null : reason.trim();
     }
 
     /* Looks up by id AND tenant. Another tenant's item looks exactly like a missing item (404). */
     private Item find(String tenantId, UUID id) {
         return items.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Item not found"));
+    }
+
+    /* A user typing % or _ in the search box must match those characters literally. */
+    private static String escapeLike(String value) {
+        return value.replace("!", "!!").replace("%", "!%").replace("_", "!_");
     }
 }
