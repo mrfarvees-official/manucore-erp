@@ -1,6 +1,6 @@
-package com.manucore.identity.domain.repository;
+package com.manucore.identity.account.repository;
 
-import com.manucore.identity.domain.Tenant;
+import com.manucore.identity.account.Tenant;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface TenantRepository extends JpaRepository<Tenant, String> {

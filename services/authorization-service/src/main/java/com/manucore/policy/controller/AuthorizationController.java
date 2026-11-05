@@ -1,29 +1,19 @@
-package com.manucore.policy;
+package com.manucore.policy.controller;
 
 import com.manucore.policy.dto.AuthorizationDecision;
 import com.manucore.policy.dto.AuthorizationRequest;
 import com.manucore.policy.dto.CallerContext;
 import com.manucore.policy.dto.PermissionMatrix;
-import com.manucore.policy.enums.ConditionAttribute;
 import com.manucore.policy.service.CallerContextFactory;
 import com.manucore.policy.service.PermissionMatrixService;
 import com.manucore.policy.service.PolicyEngine;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
-
-import java.time.DayOfWeek;
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.util.EnumMap;
-import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/authorization")

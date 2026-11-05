@@ -1,5 +1,6 @@
-package com.manucore.identity.auth;
+package com.manucore.identity.account;
 
+import com.manucore.identity.account.dto.PermissionMatrix;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;

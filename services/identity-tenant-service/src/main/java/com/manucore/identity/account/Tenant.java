@@ -1,4 +1,4 @@
-package com.manucore.identity.domain;
+package com.manucore.identity.account;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

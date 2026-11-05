@@ -1,4 +1,4 @@
-package com.manucore.identity.domain;
+package com.manucore.identity.account;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

@@ -20,13 +20,31 @@ public class AdjustmentService {
 
     @Transactional(readOnly = true)
     public Page<StockAdjustment> list(String tenantId, UUID itemId, int page, int size) {
+        return list(tenantId, itemId, null, page, size);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<StockAdjustment> list(String tenantId, UUID itemId, String actorId, int page, int size) {
         Pageable pageable = PageRequest.of(
                 Math.max(page, 0),
                 Math.min(Math.max(size, 1), 100),
                 Sort.by(Sort.Direction.DESC, "createdAt"));
 
-        return itemId == null
-                ? adjustments.findByTenantId(tenantId, pageable)
-                : adjustments.findByTenantIdAndItemId(tenantId, itemId, pageable);
+        boolean byActor = actorId != null && !actorId.isBlank();
+        String actor = byActor ? actorId.trim() : null;
+
+        if (itemId != null && byActor) {
+            return adjustments.findByTenantIdAndItemIdAndActorId(tenantId, itemId, actor, pageable);
+        }
+
+        if (itemId != null) {
+            return adjustments.findByTenantIdAndItemId(tenantId, itemId, pageable);
+        }
+
+        if (byActor) {
+            return adjustments.findByTenantIdAndActorId(tenantId, actor, pageable);
+        }
+
+        return adjustments.findByTenantId(tenantId, pageable);
     }
 }

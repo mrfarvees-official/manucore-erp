@@ -1,4 +1,4 @@
-package com.manucore.identity.auth;
+package com.manucore.identity.account.dto;
 
 import java.time.Instant;
 import java.util.List;

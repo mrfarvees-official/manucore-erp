@@ -1,6 +1,7 @@
 package com.manucore.item.dto;
 
 import com.manucore.item.Item;
+import com.manucore.item.dto.ItemType;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -13,6 +14,12 @@ public record ItemResponse(
         String name,
         String unit,
         BigDecimal quantity,
+        String category,
+        ItemType type,
+        String description,
+        BigDecimal reorderLevel,
+        boolean active,
+        boolean lowStock,
         Instant createdAt,
         Instant updatedAt) {
 
@@ -24,6 +31,12 @@ public record ItemResponse(
                 item.getName(),
                 item.getUnit(),
                 item.getQuantity(),
+                item.getCategory(),
+                item.getType(),
+                item.getDescription(),
+                item.getReorderLevel(),
+                item.isActive(),
+                item.isLowStock(),
                 item.getCreatedAt(),
                 item.getUpdatedAt());
     }

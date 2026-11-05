@@ -1,4 +1,4 @@
-package com.manucore.identity.config;
+package com.manucore.identity.account.config;
 
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;

@@ -1,17 +1,17 @@
-package com.manucore.identity;
+package com.manucore.identity.account;
 
-import com.manucore.identity.domain.Tenant;
-import com.manucore.identity.domain.UserAccount;
-import com.manucore.identity.domain.repository.TenantRepository;
-import com.manucore.identity.domain.repository.UserAccountRepository;
+import com.manucore.identity.account.repository.TenantRepository;
+import com.manucore.identity.account.repository.UserAccountRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.core.annotation.Order;
 
 import java.util.UUID;
 
+@Order(1)
 @Component
 @ConditionalOnProperty(name = "manucore.identity.seed-demo-data", havingValue = "true")
 public class DemoDataSeeder implements CommandLineRunner {

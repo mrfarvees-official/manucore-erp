@@ -1,5 +1,6 @@
 package com.manucore.item;
 
+import com.manucore.item.dto.ItemType;
 import jakarta.annotation.PreDestroy;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -32,6 +33,23 @@ public class Item {
 
     @Column(nullable = false)
     private String unit;
+
+    @Column(length = 100)
+    private String category;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "item_type", length = 30)
+    private ItemType type;
+
+    @Column(length = 1000)
+    private String description;
+
+    @Column(name = "reorder_level", precision = 19, scale = 3)
+    private BigDecimal reorderLevel;
+
+    /* Null means active. A timestamp avoids a NOT NULL column on existing rows. */
+    @Column(name = "archived_at")
+    private Instant archivedAt;
 
     @Column(nullable = false, precision = 19, scale = 3)
     private BigDecimal quantity;
@@ -83,5 +101,37 @@ public class Item {
     public void rename(String name, String unit) {
         this.name = name;
         this.unit = unit;
+    }
+
+    public void updateCatalog(String category, ItemType type, String description, BigDecimal reorderLevel) {
+        this.category = blankToNull(category);
+        this.type = type;
+        this.description = blankToNull(description);
+        this.reorderLevel = reorderLevel;
+    }
+
+    public void setArchived(boolean archived) {
+        if (archived) {
+            if (archivedAt == null) {
+                archivedAt = Instant.now();
+            }
+        } else {
+            archivedAt = null;
+        }
+    }
+
+    public boolean isActive() {
+        return archivedAt == null;
+    }
+
+    /* Above zero but at or below the reorder level. Zero stock is "out", not "low". */
+    public boolean isLowStock() {
+        return reorderLevel != null
+                && quantity.signum() > 0
+                && quantity.compareTo(reorderLevel) <= 0;
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 }

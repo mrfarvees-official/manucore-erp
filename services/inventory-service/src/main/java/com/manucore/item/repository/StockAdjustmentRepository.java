@@ -12,4 +12,9 @@ public interface StockAdjustmentRepository extends JpaRepository<StockAdjustment
     Page<StockAdjustment> findByTenantId(String tenantId, Pageable pageable);
 
     Page<StockAdjustment> findByTenantIdAndItemId(String tenantId, UUID itemId, Pageable pageable);
+
+    Page<StockAdjustment> findByTenantIdAndActorId(String tenantId, String actorId, Pageable pageable);
+
+    Page<StockAdjustment> findByTenantIdAndItemIdAndActorId(
+            String tenantId, UUID itemId, String actorId, Pageable pageable);
 }

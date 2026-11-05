@@ -1,4 +1,4 @@
-package com.manucore.policy;
+package com.manucore.policy.controller;
 
 import com.manucore.policy.dto.CallerContext;
 import com.manucore.policy.dto.PolicyDtos;

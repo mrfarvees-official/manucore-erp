@@ -1,4 +1,4 @@
-package com.manucore.identity.config;
+package com.manucore.identity.account.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

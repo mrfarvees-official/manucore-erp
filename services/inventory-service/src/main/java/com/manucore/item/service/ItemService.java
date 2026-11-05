@@ -35,7 +35,10 @@ public class ItemService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "SKU already exists: " + sku);
         }
 
-        return items.save(new Item(tenantId, sku, request.name(), request.unit(), request.quantity()));
+        Item item = new Item(tenantId, sku, request.name(), request.unit(), request.quantity());
+        item.updateCatalog(request.category(), request.type(), request.description(), request.reorderLevel());
+
+        return items.save(item);
     }
 
     @Transactional(readOnly = true)
@@ -58,6 +61,12 @@ public class ItemService {
     public Item update(String tenantId, UUID id, UpdateItemRequest request) {
         Item item = find(tenantId, id);
         item.rename(request.name().trim(), request.unit().trim());
+        item.updateCatalog(request.category(), request.type(), request.description(), request.reorderLevel());
+
+        if (request.archived() != null) {
+            item.setArchived(request.archived());
+        }
+
         return item;
     }
 

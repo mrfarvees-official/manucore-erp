@@ -1,6 +1,7 @@
-package com.manucore.identity.auth;
+package com.manucore.identity.account.service;
 
-import com.manucore.identity.domain.UserAccount;
+import com.manucore.identity.account.UserAccount;
+import com.manucore.identity.account.dto.LoginResponse;
 import com.nimbusds.jose.jwk.RSAKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;

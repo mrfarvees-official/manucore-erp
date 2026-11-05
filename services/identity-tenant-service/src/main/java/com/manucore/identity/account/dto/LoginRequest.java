@@ -1,4 +1,4 @@
-package com.manucore.identity.auth;
+package com.manucore.identity.account.dto;
 
 import jakarta.validation.constraints.NotBlank;
 

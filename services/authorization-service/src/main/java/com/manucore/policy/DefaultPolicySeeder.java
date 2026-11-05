@@ -46,7 +46,9 @@ public class DefaultPolicySeeder implements ApplicationRunner {
                     "INVENTORY.ADJUSTMENTS",
                     "INVENTORY.PING",
                     "INVENTORY.POLICIES",
-                    "INVENTORY.CATALOG");
+                    "INVENTORY.CATALOG",
+                    "IDENTITY.USERS",
+                    "IDENTITY.ROLES");
 
     private final ActionRepository actions;
     private final ResourceRepository resources;

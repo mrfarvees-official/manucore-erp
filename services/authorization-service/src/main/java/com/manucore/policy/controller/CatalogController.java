@@ -1,5 +1,7 @@
-package com.manucore.policy;
+package com.manucore.policy.controller;
 
+import com.manucore.policy.Action;
+import com.manucore.policy.Resource;
 import com.manucore.policy.dto.PolicyDtos;
 import com.manucore.policy.enums.*;
 import com.manucore.policy.repository.ActionRepository;

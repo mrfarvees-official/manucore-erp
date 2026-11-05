@@ -1,4 +1,4 @@
-package com.manucore.item;
+package com.manucore.item.controller;
 
 import com.manucore.item.dto.AdjustmentPage;
 import com.manucore.item.service.AdjustmentService;
@@ -23,8 +23,9 @@ public class AdjustmentController {
     @GetMapping
     public AdjustmentPage list(@RequestHeader(TENANT_HEADER) String tenantId,
                                @RequestParam(required = false) UUID itemId,
+                               @RequestParam(defaultValue = "") String actorId,
                                @RequestParam(defaultValue = "0") int page,
                                @RequestParam(defaultValue = "20") int size) {
-        return AdjustmentPage.from(service.list(tenantId, itemId, page, size));
+        return AdjustmentPage.from(service.list(tenantId, itemId, actorId, page, size));
     }
 }

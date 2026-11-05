@@ -1,9 +1,15 @@
-package com.manucore.identity.auth;
+package com.manucore.identity.account.controller;
 
-import com.manucore.identity.domain.Tenant;
-import com.manucore.identity.domain.UserAccount;
-import com.manucore.identity.domain.repository.TenantRepository;
-import com.manucore.identity.domain.repository.UserAccountRepository;
+import com.manucore.identity.account.AuthorizationClient;
+import com.manucore.identity.account.Tenant;
+import com.manucore.identity.account.service.TokenService;
+import com.manucore.identity.account.UserAccount;
+import com.manucore.identity.account.dto.LoginRequest;
+import com.manucore.identity.account.dto.LoginResponse;
+import com.manucore.identity.account.dto.MeResponse;
+import com.manucore.identity.account.dto.PermissionMatrix;
+import com.manucore.identity.account.repository.TenantRepository;
+import com.manucore.identity.account.repository.UserAccountRepository;
 import com.nimbusds.jose.jwk.JWKSet;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
