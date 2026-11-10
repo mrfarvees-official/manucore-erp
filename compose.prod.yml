@@ -33,6 +33,7 @@ services:
 
   identity-tenant-service:
     <<: *java
+    image: ghcr.io/${GHCR_OWNER:-local}/manucore-identity:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: services/identity-tenant-service/Dockerfile
@@ -59,6 +60,7 @@ services:
 
   authorization-service:
     <<: *java
+    image: ghcr.io/${GHCR_OWNER:-local}/manucore-authorization:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: services/authorization-service/Dockerfile
@@ -84,6 +86,7 @@ services:
 
   inventory-service:
     <<: *java
+    image: ghcr.io/${GHCR_OWNER:-local}/manucore-inventory:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: services/inventory-service/Dockerfile
@@ -106,6 +109,7 @@ services:
 
   gateway-service:
     <<: *java
+    image: ghcr.io/${GHCR_OWNER:-local}/manucore-gateway:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: services/gateway-service/Dockerfile
@@ -132,27 +136,10 @@ services:
       retries: 30
       start_period: 120s
 
-  ui:
-    <<: *service
-    mem_limit: 512m
-    build:
-      context: ../manucore-erp-ui
-      dockerfile: Dockerfile
-    environment:
-      SPRING_BOOT_API_URL: http://gateway-service:8080
-    depends_on:
-      gateway-service:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "node", "-e", "require('net').connect(3000,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-
   # The only public entrance. It terminates HTTPS and forwards the original Host header.
   caddy:
     <<: *service
+    image: ghcr.io/${GHCR_OWNER:-local}/manucore-caddy:${IMAGE_TAG:-latest}
     build: ./deploy/caddy
     ports:
       - "80:80"
