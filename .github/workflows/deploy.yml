@@ -1,0 +1,144 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  images:
+    needs: ci
+    runs-on: ubuntu-24.04-arm        # use ubuntu-24.04-arm if the server is aarch64
+    timeout-minutes: 40
+    strategy:
+      matrix:
+        include:
+          - { name: identity,      file: services/identity-tenant-service/Dockerfile, context: . }
+          - { name: authorization, file: services/authorization-service/Dockerfile,   context: . }
+          - { name: inventory,     file: services/inventory-service/Dockerfile,       context: . }
+          - { name: gateway,       file: services/gateway-service/Dockerfile,         context: . }
+          - { name: caddy,         file: deploy/caddy/Dockerfile,                     context: deploy/caddy }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lower-case the owner (registry names must be lower case)
+        run: echo "OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          push: true
+          provenance: false
+          tags: |
+            ghcr.io/${{ env.OWNER }}/manucore-${{ matrix.name }}:${{ github.sha }}
+            ghcr.io/${{ env.OWNER }}/manucore-${{ matrix.name }}:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  deploy:
+    needs: images
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    env:
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lower-case the owner
+        run: echo "OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+
+      - name: Prepare SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          cat > ~/.ssh/config <<EOF
+          Host prod
+            HostName ${SSH_HOST}
+            User ${SSH_USER}
+            IdentityFile ~/.ssh/deploy_key
+            StrictHostKeyChecking yes
+            ServerAliveInterval 30
+          EOF
+
+      - name: Install Docker, curl and rsync on the server if missing
+        run: ssh prod 'bash -s' < deploy/bootstrap.sh
+
+      - name: Upload compose file and Caddy config
+        run: |
+          rsync -az -e ssh compose.prod.yml prod:manucore/compose.prod.yml
+          rsync -az --delete -e ssh deploy/ prod:manucore/deploy/
+
+      - name: Write the server .env from secrets
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
+          ACME_EMAIL: ${{ secrets.ACME_EMAIL }}
+          DEMO_PASSWORD: ${{ secrets.DEMO_PASSWORD }}
+          BASE_DOMAIN: ${{ vars.BASE_DOMAIN }}
+          DOMAIN_LOGIN: ${{ vars.DOMAIN_LOGIN }}
+          SEED_DEMO_DATA: ${{ vars.SEED_DEMO_DATA }}
+          SEED_TENANTS: ${{ vars.SEED_TENANTS }}
+          ACME_CA: ${{ vars.ACME_CA }}
+        run: |
+          umask 077
+          {
+            printf "GHCR_OWNER='%s'\n"        "$OWNER"
+            printf "IMAGE_TAG='%s'\n"         "$GITHUB_SHA"
+            printf "BASE_DOMAIN='%s'\n"       "$BASE_DOMAIN"
+            printf "ACME_EMAIL='%s'\n"        "$ACME_EMAIL"
+            printf "ACME_CA='%s'\n"           "$ACME_CA"
+            printf "VERCEL_API_TOKEN='%s'\n"  "$VERCEL_API_TOKEN"
+            printf "POSTGRES_PASSWORD='%s'\n" "$POSTGRES_PASSWORD"
+            printf "DEMO_PASSWORD='%s'\n"     "$DEMO_PASSWORD"
+            printf "SEED_DEMO_DATA='%s'\n"    "${SEED_DEMO_DATA:-false}"
+            printf "SEED_TENANTS='%s'\n"      "${SEED_TENANTS:-acme}"
+            printf "DOMAIN_LOGIN='%s'\n"      "${DOMAIN_LOGIN:-off}"
+          } > server.env
+          ssh prod 'umask 077; cat > manucore/.env' < server.env
+          rm -f server.env
+
+      - name: Pull images and start
+        env:
+          GHCR_USER: ${{ secrets.GHCR_USER }}
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
+        run: ssh prod "bash manucore/deploy/remote-deploy.sh '$GHCR_USER'" <<< "$GHCR_PAT"
+
+      - name: Smoke test through Caddy, DNS and the UI
+        env:
+          BASE_DOMAIN: ${{ vars.BASE_DOMAIN }}
+        run: |
+          curl -ksS --retry 20 --retry-delay 15 --retry-all-errors \
+            -o /dev/null -w "login page: HTTP %{http_code}\n" "https://${BASE_DOMAIN}/login"
+
+      - name: Show container state if the deploy failed
+        if: failure()
+        run: ssh prod 'cd manucore && sudo docker compose -f compose.prod.yml ps && sudo docker compose -f compose.prod.yml logs --tail 40'
