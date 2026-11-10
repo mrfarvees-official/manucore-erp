@@ -27,6 +27,8 @@ services:
       SPRING_DATASOURCE_USERNAME: manucore
       SPRING_DATASOURCE_PASSWORD: manucore
       SEED_DEMO_DATA: "true"
+      BASE_DOMAINS: "manucore.farvees.xyz,localhost"
+      DOMAIN_LOGIN: "off"
       AUTHORIZATION_SERVICE_URL: http://authorization-service:8083
     depends_on:
       postgres:

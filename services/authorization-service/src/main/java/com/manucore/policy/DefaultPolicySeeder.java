@@ -48,7 +48,10 @@ public class DefaultPolicySeeder implements ApplicationRunner {
                     "INVENTORY.POLICIES",
                     "INVENTORY.CATALOG",
                     "IDENTITY.USERS",
-                    "IDENTITY.ROLES");
+                    "IDENTITY.ROLES",
+                    "IDENTITY.TENANT",
+                    "IDENTITY.DOMAINS",
+                    "IDENTITY.AUDIT");
 
     private final ActionRepository actions;
     private final ResourceRepository resources;

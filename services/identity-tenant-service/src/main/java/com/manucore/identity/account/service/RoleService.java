@@ -6,6 +6,9 @@ import com.manucore.identity.account.repository.UserAccountRepository;
 import com.manucore.identity.account.dto.RoleDtos.CreateRoleRequest;
 import com.manucore.identity.account.dto.RoleDtos.RoleResponse;
 import com.manucore.identity.account.dto.RoleDtos.UpdateRoleRequest;
+import com.manucore.identity.audit.ChangeSet;
+import com.manucore.identity.audit.dto.Actor;
+import com.manucore.identity.audit.service.AuditService;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -27,6 +30,7 @@ public class RoleService {
 
     private final RoleRepository roles;
     private final UserAccountRepository users;
+    private final AuditService audit;
 
     @Transactional(readOnly = true)
     public List<RoleResponse> list(String tenantId) {
@@ -45,7 +49,7 @@ public class RoleService {
     }
 
     @Transactional
-    public RoleResponse create(String tenantId, CreateRoleRequest request) {
+    public RoleResponse create(String tenantId, Actor actor, CreateRoleRequest request) {
         String name = request.name().trim().toUpperCase(Locale.ROOT);
 
         if (roles.existsByTenantIdAndNameIgnoreCase(tenantId, name)) {
@@ -54,20 +58,35 @@ public class RoleService {
 
         Role role = roles.save(new Role(tenantId, name, clean(request.description()), false));
 
+        audit.record(tenantId, actor, "ROLE_CREATED", "ROLE", role.getId().toString(), name,
+                new ChangeSet()
+                        .add("name", null, name)
+                        .add("description", null, role.getDescription())
+                        .asList());
+
         return RoleResponse.from(role, 0);
     }
 
     /* The name is immutable because policies and users refer to it. */
     @Transactional
-    public RoleResponse update(String tenantId, UUID id, UpdateRoleRequest request) {
+    public RoleResponse update(String tenantId, Actor actor, UUID id, UpdateRoleRequest request) {
         Role role = find(tenantId, id);
-        role.setDescription(clean(request.description()));
+        String description = clean(request.description());
+
+        ChangeSet changes = new ChangeSet().add("description", role.getDescription(), description);
+
+        role.setDescription(description);
+
+        if (!changes.isEmpty()) {
+            audit.record(tenantId, actor, "ROLE_UPDATED", "ROLE", role.getId().toString(),
+                    role.getName(), changes.asList());
+        }
 
         return RoleResponse.from(role, countUsers(tenantId).getOrDefault(role.getName(), 0L));
     }
 
     @Transactional
-    public void delete(String tenantId, UUID id) {
+    public void delete(String tenantId, Actor actor, UUID id) {
         Role role = find(tenantId, id);
 
         if (role.isSystemRole()) {
@@ -83,6 +102,12 @@ public class RoleService {
         }
 
         roles.delete(role);
+
+        audit.record(tenantId, actor, "ROLE_DELETED", "ROLE", id.toString(), role.getName(),
+                new ChangeSet()
+                        .add("name", role.getName(), null)
+                        .add("description", role.getDescription(), null)
+                        .asList());
     }
 
     /** Creates the role if it is missing. Used by the startup backfill. */

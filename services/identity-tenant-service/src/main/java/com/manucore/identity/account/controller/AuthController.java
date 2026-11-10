@@ -10,6 +10,7 @@ import com.manucore.identity.account.dto.MeResponse;
 import com.manucore.identity.account.dto.PermissionMatrix;
 import com.manucore.identity.account.repository.TenantRepository;
 import com.manucore.identity.account.repository.UserAccountRepository;
+import com.manucore.identity.domains.service.DomainService;
 import com.nimbusds.jose.jwk.JWKSet;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
@@ -37,6 +38,7 @@ public class AuthController {
     private final TokenService tokenService;
     private final JWKSet jwkSet;
     private final AuthorizationClient authorization;
+    private final DomainService domains;
 
     @PostMapping("/login")
     public LoginResponse login(@Valid @RequestBody LoginRequest request) {
@@ -49,6 +51,23 @@ public class AuthController {
                 .filter(Tenant::isActive)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
 
+        String host = request.host();
+
+        if (host == null || host.isBlank()) {
+            if (domains.isStrictLogin()) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
+            }
+        } else {
+            Optional<String> hostTenant = domains.resolveTenantId(host);
+            boolean wrongCompany = hostTenant.isPresent()
+                    ? !hostTenant.get().equals(user.getTenantId())
+                    : domains.isStrictLogin();
+
+            if (wrongCompany) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
+            }
+        }
+
         return tokenService.issue(user);
     }
 
@@ -60,6 +79,10 @@ public class AuthController {
                 .filter(UserAccount::isActive)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
 
+        String tenantName = tenants.findById(user.getTenantId())
+                .map(Tenant::getName)
+                .orElse(user.getTenantId());
+
         List<String> roles = Arrays.stream(user.getRoles().split(","))
                 .map(String::trim)
                 .filter(role -> !role.isEmpty())
@@ -68,11 +91,17 @@ public class AuthController {
         Optional<PermissionMatrix> permissions =
                 authorization.fetchPermissions(jwt.getTokenValue());
 
+        Tenant tenant = tenants.findById(user.getTenantId()).orElse(null);
+
         return new MeResponse(
                 user.getId().toString(),
                 user.getEmail(),
                 user.getName(),
                 user.getTenantId(),
+                tenant != null ? tenant.getName() : user.getTenantId(),
+                user.getTimezone() != null ? user.getTimezone() : (tenant != null ? tenant.getTimezone() : "UTC"),
+                user.getLocale() != null ? user.getLocale() : (tenant != null ? tenant.getLocale() : "en-US"),
+                tenant != null ? tenant.getCurrency() : "USD",
                 roles,
                 permissions.isPresent(),
                 permissions.orElse(null));

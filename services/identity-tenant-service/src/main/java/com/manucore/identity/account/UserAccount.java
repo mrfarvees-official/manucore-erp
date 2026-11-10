@@ -37,4 +37,22 @@ public class UserAccount {
 
     @Column(nullable = false)
     private boolean active = true;
+
+    /* Null means "use the company default". */
+    @Column(length = 64)
+    private String timezone;
+
+    @Column(length = 35)
+    private String locale;
+
+    public UserAccount(UUID id, String tenantId, String name, String email,
+                       String passwordHash, String roles, boolean active) {
+        this.id = id;
+        this.tenantId = tenantId;
+        this.name = name;
+        this.email = email;
+        this.passwordHash = passwordHash;
+        this.roles = roles;
+        this.active = active;
+    }
 }

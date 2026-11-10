@@ -26,4 +26,31 @@ public class Tenant {
     @Column(nullable = false)
     private boolean active = true;
 
+    @Column(length = 64)
+    private String timezone;
+
+    @Column(length = 3)
+    private String currency;
+
+    @Column(length = 35)
+    private String locale;
+
+    public Tenant(String id, String name, boolean active) {
+        this.id = id;
+        this.name = name;
+        this.active = active;
+    }
+
+    /* Columns are nullable so existing rows migrate; null falls back to a default. */
+    public String getTimezone() {
+        return timezone == null ? "UTC" : timezone;
+    }
+
+    public String getCurrency() {
+        return currency == null ? "USD" : currency;
+    }
+
+    public String getLocale() {
+        return locale == null ? "en-US" : locale;
+    }
 }

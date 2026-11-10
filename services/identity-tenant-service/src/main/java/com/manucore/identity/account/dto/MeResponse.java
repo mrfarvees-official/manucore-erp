@@ -7,6 +7,10 @@ public record MeResponse(
         String email,
         String name,
         String tenantId,
+        String tenantName,
+        String timezone,
+        String locale,
+        String currency,
         List<String> roles,
         /** false when the authorization service could not be reached; hide privileged UI. */
         boolean permissionsAvailable,

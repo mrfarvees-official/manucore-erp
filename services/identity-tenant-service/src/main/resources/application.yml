@@ -18,6 +18,8 @@ manucore:
     token-ttl: ${JWT_TTL:PT1H}
     seed-demo-data: ${SEED_DEMO_DATA:true}
     demo-password: ${DEMO_PASSWORD:Admin@123}
+    domain-login: ${DOMAIN_LOGIN:off}        # off | strict
+    base-domains: ${BASE_DOMAINS:localhost}  # comma separated, e.g. erp.example.com
   authorization:
     url: ${AUTHORIZATION_SERVICE_URL:http://localhost:8083}
     timeout: ${AUTHORIZATION_TIMEOUT:PT2S}

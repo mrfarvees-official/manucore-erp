@@ -5,6 +5,9 @@ import com.manucore.identity.account.repository.UserAccountRepository;
 import com.manucore.identity.account.dto.UserDtos;
 import com.manucore.identity.account.dto.UserDtos.CreateUserRequest;
 import com.manucore.identity.account.dto.UserDtos.UpdateUserRequest;
+import com.manucore.identity.audit.ChangeSet;
+import com.manucore.identity.audit.dto.Actor;
+import com.manucore.identity.audit.service.AuditService;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -33,9 +36,10 @@ public class UserAdminService {
     private static final String ADMIN = "ADMIN";
     private static final Set<String> STATUSES = Set.of("ACTIVE", "INACTIVE", "ALL");
 
-    private final UserAccountRepository users;
     private final PasswordEncoder passwordEncoder;
-    private final RoleRepository roleRepository;
+    private final UserAccountRepository users;
+    private final RoleRepository roles;
+    private final AuditService audit;
 
     @Transactional(readOnly = true)
     public Page<UserAccount> search(String tenantId, String query, String status, int page, int size) {
@@ -61,13 +65,13 @@ public class UserAdminService {
 
     @Transactional(readOnly = true)
     public List<RoleOption> roleOptions(String tenantId) {
-        return roleRepository.findByTenantIdOrderByNameAsc(tenantId).stream()
+        return roles.findByTenantIdOrderByNameAsc(tenantId).stream()
                 .map(r -> new RoleOption(r.getName(), r.getDescription()))
                 .toList();
     }
 
     private void requireKnownRoles(String tenantId, Set<String> requested) {
-        Set<String> known = roleRepository.findByTenantIdOrderByNameAsc(tenantId).stream()
+        Set<String> known = roles.findByTenantIdOrderByNameAsc(tenantId).stream()
                 .map(r -> r.getName().toUpperCase(Locale.ROOT))
                 .collect(Collectors.toSet());
 
@@ -79,7 +83,7 @@ public class UserAdminService {
     }
 
     @Transactional
-    public UserAccount create(String tenantId, CreateUserRequest request) {
+    public UserAccount create(String tenantId, Actor actor, CreateUserRequest request) {
         String email = request.email().trim().toLowerCase(Locale.ROOT);
 
         if (users.existsByEmailIgnoreCase(email)) {
@@ -93,7 +97,7 @@ public class UserAdminService {
 
         boolean active = request.active() == null || request.active();
 
-        return users.save(new UserAccount(
+        UserAccount saved = users.save(new UserAccount(
                 UUID.randomUUID(),
                 tenantId,
                 request.name().trim(),
@@ -101,10 +105,20 @@ public class UserAdminService {
                 passwordEncoder.encode(request.password()),
                 String.join(",", roles),
                 active));
+
+        audit.record(tenantId, actor, "USER_CREATED", "USER", saved.getId().toString(), saved.getEmail(),
+                new ChangeSet()
+                        .add("name", null, saved.getName())
+                        .add("roles", null, saved.getRoles())
+                        .add("active", null, saved.isActive())
+                        .asList());
+
+        return saved;
     }
 
     @Transactional
-    public UserAccount update(String tenantId, UUID callerId, UUID id, UpdateUserRequest request) {
+    public UserAccount update(String tenantId, Actor actor, UUID id, UpdateUserRequest request) {
+        UUID callerId = UUID.fromString(actor.id());
         UserAccount user = find(tenantId, id);
         Set<String> roles = normalizeRoles(request.roles());
         requireKnownRoles(tenantId, roles);
@@ -126,13 +140,31 @@ public class UserAdminService {
                     "At least one active administrator is required");
         }
 
-        user.setName(request.name().trim());
-        user.setRoles(String.join(",", roles));
+        String name = request.name().trim();
+        String newRoles = String.join(",", roles);
+        boolean passwordReset = request.password() != null && !request.password().isBlank();
+
+        ChangeSet changes = new ChangeSet()
+                .add("name", user.getName(), name)
+                .add("roles", user.getRoles(), newRoles)
+                .add("active", user.isActive(), request.active());
+
+        if (passwordReset) {
+            checkPasswordLength(request.password());
+            changes.note("password", "reset by an administrator");
+        }
+
+        user.setName(name);
+        user.setRoles(newRoles);
         user.setActive(request.active());
 
-        if (request.password() != null && !request.password().isBlank()) {
-            checkPasswordLength(request.password());
+        if (passwordReset) {
             user.setPasswordHash(passwordEncoder.encode(request.password()));
+        }
+
+        if (!changes.isEmpty()) {
+            audit.record(tenantId, actor, "USER_UPDATED", "USER", user.getId().toString(),
+                    user.getEmail(), changes.asList());
         }
 
         return user;

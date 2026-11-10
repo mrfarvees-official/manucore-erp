@@ -6,6 +6,7 @@ import com.manucore.identity.account.dto.UserDtos.UpdateUserRequest;
 import com.manucore.identity.account.dto.UserDtos.UserPage;
 import com.manucore.identity.account.dto.UserDtos.UserResponse;
 import com.manucore.identity.account.service.UserAdminService;
+import com.manucore.identity.audit.ActorResolver;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -33,6 +34,7 @@ public class UserAdminController {
     private static final String TENANT_CLAIM = "tenant_id";
 
     private final UserAdminService service;
+    private final ActorResolver actors;
 
     @GetMapping
     public UserPage list(@AuthenticationPrincipal Jwt jwt,
@@ -58,15 +60,14 @@ public class UserAdminController {
     @ResponseStatus(HttpStatus.CREATED)
     public UserResponse create(@AuthenticationPrincipal Jwt jwt,
                                @Valid @RequestBody CreateUserRequest request) {
-        return UserResponse.from(service.create(tenantOf(jwt), request));
+        return UserResponse.from(service.create(tenantOf(jwt), actors.from(jwt), request));
     }
 
     @PutMapping("/{id}")
     public UserResponse update(@AuthenticationPrincipal Jwt jwt,
                                @PathVariable UUID id,
                                @Valid @RequestBody UpdateUserRequest request) {
-        return UserResponse.from(
-                service.update(tenantOf(jwt), UUID.fromString(jwt.getSubject()), id, request));
+        return UserResponse.from(service.update(tenantOf(jwt), actors.from(jwt), id, request));
     }
 
     private static String tenantOf(Jwt jwt) {
