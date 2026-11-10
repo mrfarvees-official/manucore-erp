@@ -22,6 +22,7 @@ jobs:
     runs-on: ubuntu-24.04-arm        # use ubuntu-24.04-arm if the server is aarch64
     timeout-minutes: 40
     strategy:
+      fail-fast: false
       matrix:
         include:
           - { name: identity,      file: services/identity-tenant-service/Dockerfile, context: . }
