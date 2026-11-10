@@ -1,0 +1,179 @@
+name: manucore
+
+# Shared by every container.
+x-service: &service
+  restart: unless-stopped
+  networks: [internal]
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+# Shared by the Java services.
+x-java: &java
+  <<: *service
+  mem_limit: 768m
+
+services:
+  postgres:
+    <<: *service
+    image: postgres:17
+    environment:
+      POSTGRES_DB: manucore
+      POSTGRES_USER: manucore
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U manucore -d manucore"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  identity-tenant-service:
+    <<: *java
+    build:
+      context: .
+      dockerfile: services/identity-tenant-service/Dockerfile
+    environment:
+      JAVA_OPTS: "-XX:MaxRAMPercentage=60 -XX:+ExitOnOutOfMemoryError"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/manucore
+      SPRING_DATASOURCE_USERNAME: manucore
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      AUTHORIZATION_SERVICE_URL: http://authorization-service:8083
+      AUTHORIZATION_TIMEOUT: PT5S
+      BASE_DOMAINS: ${BASE_DOMAIN:?set BASE_DOMAIN in .env}
+      DOMAIN_LOGIN: ${DOMAIN_LOGIN:-off}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:?set DEMO_PASSWORD in .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8082"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
+
+  authorization-service:
+    <<: *java
+    build:
+      context: .
+      dockerfile: services/authorization-service/Dockerfile
+    environment:
+      JAVA_OPTS: "-XX:MaxRAMPercentage=60 -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: 8083
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/manucore
+      SPRING_DATASOURCE_USERNAME: manucore
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_JWK_SET_URI: http://identity-tenant-service:8082/api/v1/auth/jwks
+      SEED_TENANTS: ${SEED_TENANTS:-acme}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      identity-tenant-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8083"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
+
+  inventory-service:
+    <<: *java
+    build:
+      context: .
+      dockerfile: services/inventory-service/Dockerfile
+    environment:
+      JAVA_OPTS: "-XX:MaxRAMPercentage=60 -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: 8081
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/manucore
+      SPRING_DATASOURCE_USERNAME: manucore
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8081"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
+
+  gateway-service:
+    <<: *java
+    build:
+      context: .
+      dockerfile: services/gateway-service/Dockerfile
+    environment:
+      JAVA_OPTS: "-XX:MaxRAMPercentage=60 -XX:+ExitOnOutOfMemoryError"
+      # Never "dev-open" in production: it disables authentication and authorization.
+      SPRING_PROFILES_ACTIVE: secured
+      IDENTITY_SERVICE_URL: http://identity-tenant-service:8082
+      AUTHORIZATION_SERVICE_URL: http://authorization-service:8083
+      INVENTORY_SERVICE_URL: http://inventory-service:8081
+      JWT_JWK_SET_URI: http://identity-tenant-service:8082/api/v1/auth/jwks
+      AUTHORIZATION_TIMEOUT: PT5S
+    depends_on:
+      identity-tenant-service:
+        condition: service_healthy
+      authorization-service:
+        condition: service_healthy
+      inventory-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
+
+  ui:
+    <<: *service
+    mem_limit: 512m
+    build:
+      context: ../manucore-erp-ui
+      dockerfile: Dockerfile
+    environment:
+      SPRING_BOOT_API_URL: http://gateway-service:8080
+    depends_on:
+      gateway-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('net').connect(3000,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # The only public entrance. It terminates HTTPS and forwards the original Host header.
+  caddy:
+    <<: *service
+    build: ./deploy/caddy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      BASE_DOMAIN: ${BASE_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
+      ACME_CA: ${ACME_CA:-https://acme-v02.api.letsencrypt.org/directory}
+      VERCEL_API_TOKEN: ${VERCEL_API_TOKEN:?set VERCEL_API_TOKEN in .env}
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - ui
+
+networks:
+  internal: {}
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

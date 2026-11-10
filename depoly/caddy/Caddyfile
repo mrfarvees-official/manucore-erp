@@ -1,0 +1,14 @@
+{
+    email {$ACME_EMAIL}
+    acme_ca {$ACME_CA}
+}
+
+{$BASE_DOMAIN}, *.{$BASE_DOMAIN} {
+    tls {
+        dns vercel {env.VERCEL_API_TOKEN}
+        propagation_delay 30s
+        propagation_timeout 5m
+    }
+    encode zstd gzip
+    reverse_proxy ui:3000
+}
